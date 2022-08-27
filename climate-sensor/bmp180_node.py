@@ -41,7 +41,7 @@ def publish(client):
         pressure = bmp180.read_pressure() / 10.0
         pressure_str = f"{pressure:.2f}"
 
-        msg = f"climate_sensor,sensor_id=test,site=home,location=office temperature={temperature_str},pressure={pressure_str}"
+        msg = f"climate_sensor,sensor_id=rpi2-bmp180,site=home,location=living_room temperature={temperature_str},pressure={pressure_str}"
         result = client.publish(topic, msg)
         # result: [0, 1]
         status = result[0]
