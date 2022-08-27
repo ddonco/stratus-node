@@ -9,7 +9,7 @@ from paho.mqtt import client as mqtt_client
 broker = "192.168.40.94"
 port = 1883
 topic = "sensors"
-client_id = f"bmp280-{'office'}"
+client_id = f"bmp180-{'living_room'}"
 # username = 'emqx'
 # password = 'public'
 
