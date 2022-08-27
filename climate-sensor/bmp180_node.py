@@ -38,7 +38,7 @@ def publish(client):
     while True:
         temperature = (bmp180.read_temperature() * 9/5) + 32
         temperature_str = f"{temperature:.2f}"
-        pressure = bmp180.read_pressure() / 10.0
+        pressure = bmp180.read_pressure() / 100.0
         pressure_str = f"{pressure:.2f}"
 
         msg = f"climate_sensor,sensor_id=rpi2-bmp180,site=home,location=living_room temperature={temperature_str},pressure={pressure_str}"
