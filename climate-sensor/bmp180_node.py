@@ -14,7 +14,7 @@ client_id = f"bmp180-{'living_room'}"
 # password = 'public'
 
 # Initialise the BMP180
-bmp180 = BMP085.BMP085()
+bmp180 = BMP085.BMP085(mode=BMP085.BMP085_STANDARD)
 
 
 def connect_mqtt():
