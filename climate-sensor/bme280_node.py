@@ -1,21 +1,36 @@
 #!/usr/bin/env python
 
 import argparse
+import datetime
 import time
-import Adafruit_BMP.BMP085 as BMP085
+from bme280 import BME280
+from subprocess import PIPE, Popen
 from paho.mqtt import client as mqtt_client
+
+try:
+    from smbus2 import SMBus
+except ImportError:
+    from smbus import SMBus
 
 
 # MQTT broker constants
 broker = "192.168.40.94"
 port = 1883
 topic = "sensors"
-client_id = f"bmp180-{'living_room'}"
+client_id = f"bme280-{'office'}"
 # username = 'emqx'
 # password = 'public'
 
-# Initialise the BMP180
-bmp180 = BMP085.BMP085(mode=BMP085.BMP085_STANDARD)
+# Initialise the bme280
+bus = SMBus(1)
+bme280 = BME280(i2c_dev=bus, i2c_addr=0x77)
+
+
+# Gets the CPU temperature in degrees C
+def get_cpu_temperature():
+    process = Popen(['vcgencmd', 'measure_temp'], stdout=PIPE)
+    output, _error = process.communicate()
+    return float(output[output.decode().index('=') + 1:output.decode().rindex("'")])
 
 
 def connect_mqtt():
@@ -35,14 +50,28 @@ def connect_mqtt():
 def publish(client, sensor_id, location, site="home"):
     factor = 1.2  # Smaller numbers adjust temp down, vice versa
     smooth_size = 10  # Dampens jitter due to rapid CPU temp changes
+    cpu_temps = []
     compensate = False
     while True:
-        temperature = (bmp180.read_temperature() * 9/5) + 32
-        temperature_str = f"{temperature:.2f}"
-        pressure = bmp180.read_pressure() / 100.0
-        pressure_str = f"{pressure:.2f}"
+        cpu_temp = (get_cpu_temperature() * 9/5) + 32
+        cpu_temps.append(cpu_temp)
 
-        msg = f"climate_sensor,sensor_id={sensor_id},site={site},location={location} temperature={temperature_str},pressure={pressure_str}"
+        if len(cpu_temps) > smooth_size:
+            cpu_temps = cpu_temps[1:]
+
+        smoothed_cpu_temp = sum(cpu_temps) / float(len(cpu_temps))
+        temperature = (bme280.get_temperature() * 9/5) + 32
+        if compensate:
+            temperature = temperature - \
+                ((smoothed_cpu_temp - temperature) / factor)
+
+        temperature_str = f"{temperature:.2f}"
+        pressure = bme280.get_pressure()
+        pressure_str = f"{pressure:.2f}"
+        humidity = bme280.get_humidity()
+        humidity_str = f"{humidity:.2f}"
+
+        msg = f"climate_sensor,sensor_id={sensor_id},site={site},location={location} temperature={temperature_str},pressure={pressure_str},humidity={humidity_str}"
         result = client.publish(topic, msg)
         # result: [0, 1]
         status = result[0]
@@ -59,7 +88,7 @@ def main():
     client.loop_start()
 
     parser = argparse.ArgumentParser(
-        description='Stratus environmental node using a BMP280 sensor to measure ambient temperature and pressure.')
+        description='Stratus environmental node using a bme280 sensor to measure ambient temperature and pressure.')
     parser.add_argument('-l', '--location',
                         type=str,
                         help='location of the sensor',

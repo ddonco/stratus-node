@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import argparse
 import datetime
 import time
 from bmp280 import BMP280
@@ -46,7 +47,7 @@ def connect_mqtt():
     return client
 
 
-def publish(client):
+def publish(client, sensor_id, location, site="home"):
     factor = 1.2  # Smaller numbers adjust temp down, vice versa
     smooth_size = 10  # Dampens jitter due to rapid CPU temp changes
     cpu_temps = []
@@ -68,7 +69,7 @@ def publish(client):
         pressure = bmp280.get_pressure()
         pressure_str = f"{pressure:.2f}"
 
-        msg = f"climate_sensor,sensor_id=rpi3-bmp280,site=home,location=office temperature={temperature_str},pressure={pressure_str}"
+        msg = f"climate_sensor,sensor_id={sensor_id},site={site},location={location} temperature={temperature_str},pressure={pressure_str}"
         result = client.publish(topic, msg)
         # result: [0, 1]
         status = result[0]
@@ -83,7 +84,28 @@ def publish(client):
 def main():
     client = connect_mqtt()
     client.loop_start()
-    publish(client)
+
+    parser = argparse.ArgumentParser(
+        description='Stratus environmental node using a BMP280 sensor to measure ambient temperature and pressure.')
+    parser.add_argument('-l', '--location',
+                        type=str,
+                        help='location of the sensor',
+                        required=True)
+    parser.add_argument('-i', '--id',
+                        type=str,
+                        help='id of the sensor',
+                        required=True)
+    parser.add_argument('-s', '--site',
+                        type=str,
+                        help='site of the sensor')
+    args = vars(parser.parse_args())
+    location = args['location']
+    id = args['id']
+    if args['site']:
+        site = args['site']
+        publish(client, id, location, site)
+
+    publish(client, id, location)
 
 
 if __name__ == '__main__':
