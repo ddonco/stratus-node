@@ -13,14 +13,6 @@ except ImportError:
     from smbus import SMBus
 
 
-# MQTT broker constants
-broker = "192.168.40.94"
-port = 1883
-topic = "sensors"
-client_id = f"bme280-{'office'}"
-# username = 'emqx'
-# password = 'public'
-
 # Initialise the bme280
 bus = SMBus(1)
 bme280 = BME280(i2c_dev=bus, i2c_addr=0x77)
@@ -33,7 +25,7 @@ def get_cpu_temperature():
     return float(output[output.decode().index('=') + 1:output.decode().rindex("'")])
 
 
-def connect_mqtt():
+def connect_mqtt(broker, port, client_id):
     def on_connect(client, userdata, flags, rc):
         if rc == 0:
             print("connected to mqtt broker")
@@ -47,21 +39,21 @@ def connect_mqtt():
     return client
 
 
-def publish(client, sensor_id, location, site="home"):
+def publish(client, topic, sensor_id, location, site="home"):
     factor = 1.2  # Smaller numbers adjust temp down, vice versa
     smooth_size = 10  # Dampens jitter due to rapid CPU temp changes
     cpu_temps = []
     compensate = False
     while True:
-        cpu_temp = (get_cpu_temperature() * 9/5) + 32
-        cpu_temps.append(cpu_temp)
-
-        if len(cpu_temps) > smooth_size:
-            cpu_temps = cpu_temps[1:]
-
-        smoothed_cpu_temp = sum(cpu_temps) / float(len(cpu_temps))
         temperature = (bme280.get_temperature() * 9/5) + 32
         if compensate:
+            cpu_temp = (get_cpu_temperature() * 9/5) + 32
+            cpu_temps.append(cpu_temp)
+
+            if len(cpu_temps) > smooth_size:
+                cpu_temps = cpu_temps[1:]
+
+            smoothed_cpu_temp = sum(cpu_temps) / float(len(cpu_temps))
             temperature = temperature - \
                 ((smoothed_cpu_temp - temperature) / factor)
 
@@ -84,8 +76,12 @@ def publish(client, sensor_id, location, site="home"):
 
 
 def main():
-    client = connect_mqtt()
-    client.loop_start()
+    # MQTT broker constants
+    broker = "192.168.40.94"
+    port = 1883
+    topic = "sensors"
+    # username = 'emqx'
+    # password = 'public'
 
     parser = argparse.ArgumentParser(
         description='Stratus environmental node using a bme280 sensor to measure ambient temperature and pressure.')
@@ -103,11 +99,16 @@ def main():
     args = vars(parser.parse_args())
     location = args['location']
     id = args['id']
+
+    client_id = f"{id}-{location}"
+    client = connect_mqtt(broker, port, client_id)
+    client.loop_start()
+
     if args['site']:
         site = args['site']
-        publish(client, id, location, site)
+        publish(client, topic, id, location, site)
 
-    publish(client, id, location)
+    publish(client, topic, id, location)
 
 
 if __name__ == '__main__':
