@@ -24,7 +24,7 @@ def connect_mqtt(broker, port, client_id):
     return client
 
 
-def publish(client, topic, sensor_id, location, site="home"):
+def publish(client, topic, sensor_id, location, site="home", print_console=False):
     factor = 1.2  # Smaller numbers adjust temp down, vice versa
     smooth_size = 10  # Dampens jitter due to rapid CPU temp changes
     compensate = False
@@ -38,7 +38,7 @@ def publish(client, topic, sensor_id, location, site="home"):
         result = client.publish(topic, msg)
         # result: [0, 1]
         status = result[0]
-        if status == 0:
+        if status == 0 and print_console:
             print(f"publish success - topic: `{topic}` message: `{msg}`")
         else:
             print(f"publish failed - topic: {topic}")
@@ -67,9 +67,13 @@ def main():
     parser.add_argument('-s', '--site',
                         type=str,
                         help='site of the sensor')
+    parser.add_argument('-p', '--print',
+                        action='store_true',
+                        help='print sensor readings to console')
     args = vars(parser.parse_args())
     location = args['location']
     id = args['id']
+    print_console = args['print']
 
     client_id = f"{id}-{location}"
     client = connect_mqtt(broker, port, client_id)
@@ -77,9 +81,9 @@ def main():
 
     if args['site']:
         site = args['site']
-        publish(client, topic, id, location, site)
+        publish(client, topic, id, location, site, print_console)
 
-    publish(client, topic, id, location)
+    publish(client, topic, id, location, print_console)
 
 
 if __name__ == '__main__':
