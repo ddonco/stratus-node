@@ -113,7 +113,7 @@ def main():
         site = args['site']
         publish(client, topic, id, location, site, print_console)
 
-    publish(client, topic, id, location, print_console)
+    publish(client, topic, id, location, print_console=print_console)
 
 
 if __name__ == '__main__':
