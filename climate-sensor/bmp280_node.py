@@ -65,8 +65,9 @@ def publish(client, topic, sensor_id, location, site="home", print_console=False
         result = client.publish(topic, msg)
         # result: [0, 1]
         status = result[0]
-        if status == 0 and print_console:
-            print(f"publish success - topic: `{topic}` message: `{msg}`")
+        if status == 0:
+            if print_console:
+                print(f"publish success - topic: `{topic}` message: `{msg}`")
         else:
             print(f"publish failed - topic: {topic}")
 
